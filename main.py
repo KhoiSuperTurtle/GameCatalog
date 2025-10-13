@@ -8,19 +8,19 @@ class GameLauncher:
         pygame.init()
         pygame.mixer.init()
         
-        # Screen setup
         self.screen_info = pygame.display.Info()
-        self.width, self.height = self.screen_info.current_w - 100, self.screen_info.current_h - 100
+        self.width, self.height = self.screen_info.current_w, self.screen_info.current_h
         self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
         pygame.display.set_caption("Game Launcher")
         
-        # Game setup
         self.clock = pygame.time.Clock()
         self.fps = 60
         self.running = True
         self.games = game.game_list
         
-        # Create scrollable container
+        self.current_game = None
+        self.show_menu = True
+        
         container_margin = 50
         self.container = scrollable_container.ScrollableContainer(
             container_margin, 
@@ -29,7 +29,6 @@ class GameLauncher:
             self.height - 2 * container_margin
         )
         
-        # Create cards grid
         self.cards = self._create_cards_grid()
         
     def _create_cards_grid(self):
@@ -57,13 +56,34 @@ class GameLauncher:
                 current_row += 1
                 total_height += card_height + margin
         
-        # Add bottom margin
-        total_height += margin
+        # Добавляем высоту последней строки
+        if current_col > 0:  # Если есть незавершенная строка
+            total_height += card_height + margin
         
-        # Update container content height
         self.container.set_content_height(total_height)
         
         return cards
+    
+    def launch_game(self, game_info):
+        """Запуск выбранной игры"""
+        game_class = game_info.get_game_class()
+        if game_class:
+            self.show_menu = False
+            
+            original_screen = self.screen
+            original_size = (self.width, self.height)
+            
+            self.current_game = game_class(self.width, self.height)
+            
+            result = self.current_game.run()
+            
+            self.screen = original_screen
+            self.width, self.height = original_size
+            self.show_menu = True
+            self.current_game = None
+            
+            if result == "quit":
+                self.running = False
     
     def handle_events(self):
         for event in pygame.event.get():
@@ -72,12 +92,14 @@ class GameLauncher:
                 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self.running = False
+                    if not self.show_menu and self.current_game:
+                        pass
+                    else:
+                        self.running = False
                     
             elif event.type == pygame.VIDEORESIZE:
                 self.width, self.height = event.size
                 self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
-                # Recreate container and cards for new size
                 container_margin = 50
                 self.container = scrollable_container.ScrollableContainer(
                     container_margin, 
@@ -87,47 +109,44 @@ class GameLauncher:
                 )
                 self.cards = self._create_cards_grid()
             
-            # Handle scroll events
-            if self.container.handle_event(event):
-                continue
-                
-            # Handle mouse clicks on cards
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                mouse_pos = pygame.mouse.get_pos()
-                scroll_offset = self.container.get_scroll_offset()
-                for card in self.cards:
-                    if card.handle_click(mouse_pos, scroll_offset):
-                        break
+            if self.show_menu:
+                if self.container.handle_event(event):
+                    continue
+                    
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    mouse_pos = pygame.mouse.get_pos()
+                    scroll_offset = self.container.get_scroll_offset()
+                    for card in self.cards:
+                        if card.handle_click(mouse_pos, scroll_offset):
+                            self.launch_game(card.game_info)
+                            break
     
     def update(self):
-        # Update card hover states
-        mouse_pos = pygame.mouse.get_pos()
-        scroll_offset = self.container.get_scroll_offset()
-        for card in self.cards:
-            card.check_hover(mouse_pos, scroll_offset)
+        if self.show_menu:
+            mouse_pos = pygame.mouse.get_pos()
+            scroll_offset = self.container.get_scroll_offset()
+            for card in self.cards:
+                card.check_hover(mouse_pos, scroll_offset)
     
     def draw(self):
-        # Draw background
-        self.screen.fill((30, 31, 38))
-        
-        # Draw container background
-        pygame.draw.rect(self.screen, (40, 41, 48), self.container.rect, border_radius=10)
-        pygame.draw.rect(self.screen, (60, 61, 68), self.container.rect, 2, border_radius=10)
-        
-        # Set clipping area for container
-        clip_rect = self.container.rect.copy()
-        self.screen.set_clip(clip_rect)
-        
-        # Draw cards with scroll offset
-        scroll_offset = self.container.get_scroll_offset()
-        for card in self.cards:
-            card.draw(self.screen, scroll_offset)
-        
-        # Reset clipping
-        self.screen.set_clip(None)
-        
-        # Draw scrollbar
-        self.container.draw(self.screen)
+        if self.show_menu:
+            self.screen.fill((30, 31, 38))
+            
+            pygame.draw.rect(self.screen, (40, 41, 48), self.container.rect, border_radius=10)
+            pygame.draw.rect(self.screen, (60, 61, 68), self.container.rect, 2, border_radius=10)
+            
+            clip_rect = self.container.rect.copy()
+            self.screen.set_clip(clip_rect)
+            
+            scroll_offset = self.container.get_scroll_offset()
+            for card in self.cards:
+                card.draw(self.screen, scroll_offset)
+            
+            self.screen.set_clip(None)
+            
+            self.container.draw(self.screen)
+        else:
+            pass
         
         pygame.display.flip()
     

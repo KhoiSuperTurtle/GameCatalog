@@ -51,10 +51,16 @@ class ScrollableContainer:
             if self.is_dragging:
                 mouse_y = event.pos[1]
                 delta_y = mouse_y - self.drag_start_y
-                scroll_ratio = self.content_height / self.rect.height
-                self.scroll_y = self.scroll_start_y - (delta_y * scroll_ratio)
-                max_scroll = min(0, self.rect.height - self.content_height)
-                self.scroll_y = max(max_scroll, min(0, self.scroll_y))
+                
+                # Рассчитываем соотношение скролла
+                visible_ratio = self.rect.height / self.content_height
+                scrollable_height = self.content_height - self.rect.height
+                
+                if scrollable_height > 0:
+                    self.scroll_y = self.scroll_start_y - (delta_y / visible_ratio)
+                    max_scroll = min(0, self.rect.height - self.content_height)
+                    self.scroll_y = max(max_scroll, min(0, self.scroll_y))
+                
                 return True
                 
         return False
@@ -63,12 +69,13 @@ class ScrollableContainer:
         return self.scroll_y
         
     def draw(self, surface):
-        # Draw scrollbar background
-        scrollbar_bg = self.scrollbar_rect.copy()
-        pygame.draw.rect(surface, self.scrollbar_color, scrollbar_bg, border_radius=5)
-        
-        # Calculate scrollbar handle
+        # Draw scrollbar only if content is taller than container
         if self.content_height > self.rect.height:
+            # Draw scrollbar background
+            scrollbar_bg = self.scrollbar_rect.copy()
+            pygame.draw.rect(surface, self.scrollbar_color, scrollbar_bg, border_radius=5)
+            
+            # Calculate scrollbar handle
             handle_height = max(30, (self.rect.height / self.content_height) * self.rect.height)
             scroll_ratio = -self.scroll_y / (self.content_height - self.rect.height)
             handle_y = self.scrollbar_rect.y + scroll_ratio * (self.scrollbar_rect.height - handle_height)
