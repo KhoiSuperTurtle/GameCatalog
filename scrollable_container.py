@@ -1,0 +1,89 @@
+import pygame
+
+class ScrollableContainer:
+    def __init__(self, x, y, width, height, content_height=0):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.content_height = content_height
+        self.scroll_y = 0
+        self.scroll_speed = 20
+        self.is_dragging = False
+        self.drag_start_y = 0
+        self.scroll_start_y = 0
+        
+        # Scrollbar settings - светлая тема
+        self.scrollbar_width = 8
+        self.scrollbar_padding = 2
+        self.scrollbar_color = (200, 200, 200, 150)  # Светло-серый
+        self.scrollbar_handle_color = (150, 150, 150, 200)  # Серый
+        self.scrollbar_rect = pygame.Rect(
+            x + width - self.scrollbar_width - self.scrollbar_padding,
+            y + self.scrollbar_padding,
+            self.scrollbar_width,
+            height - 2 * self.scrollbar_padding
+        )
+        
+    def set_content_height(self, height):
+        self.content_height = height
+        
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 4:  # Scroll up
+                self.scroll_y = min(0, self.scroll_y + self.scroll_speed)
+                return True
+            elif event.button == 5:  # Scroll down
+                max_scroll = min(0, self.rect.height - self.content_height)
+                self.scroll_y = max(max_scroll, self.scroll_y - self.scroll_speed)
+                return True
+            elif event.button == 1:  # Left click
+                mouse_pos = pygame.mouse.get_pos()
+                if self.scrollbar_rect.collidepoint(mouse_pos):
+                    self.is_dragging = True
+                    self.drag_start_y = mouse_pos[1]
+                    self.scroll_start_y = self.scroll_y
+                    return True
+                    
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1 and self.is_dragging:
+                self.is_dragging = False
+                return True
+                
+        elif event.type == pygame.MOUSEMOTION:
+            if self.is_dragging:
+                mouse_y = event.pos[1]
+                delta_y = mouse_y - self.drag_start_y
+                
+                # Рассчитываем соотношение скролла
+                visible_ratio = self.rect.height / self.content_height
+                scrollable_height = self.content_height - self.rect.height
+                
+                if scrollable_height > 0:
+                    self.scroll_y = self.scroll_start_y - (delta_y / visible_ratio)
+                    max_scroll = min(0, self.rect.height - self.content_height)
+                    self.scroll_y = max(max_scroll, min(0, self.scroll_y))
+                
+                return True
+                
+        return False
+        
+    def get_scroll_offset(self):
+        return self.scroll_y
+        
+    def draw(self, surface):
+        # Draw scrollbar only if content is taller than container
+        if self.content_height > self.rect.height:
+            # Draw scrollbar background
+            scrollbar_bg = self.scrollbar_rect.copy()
+            pygame.draw.rect(surface, self.scrollbar_color, scrollbar_bg, border_radius=4)
+            
+            # Calculate scrollbar handle
+            handle_height = max(30, (self.rect.height / self.content_height) * self.rect.height)
+            scroll_ratio = -self.scroll_y / (self.content_height - self.rect.height)
+            handle_y = self.scrollbar_rect.y + scroll_ratio * (self.scrollbar_rect.height - handle_height)
+            
+            handle_rect = pygame.Rect(
+                self.scrollbar_rect.x,
+                handle_y,
+                self.scrollbar_rect.width,
+                handle_height
+            )
+            pygame.draw.rect(surface, self.scrollbar_handle_color, handle_rect, border_radius=4)
