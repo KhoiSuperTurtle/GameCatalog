@@ -8,9 +8,26 @@ class GameLauncher:
         pygame.init()
         pygame.mixer.init()
         
-        self.screen_info = pygame.display.Info()
-        self.width, self.height = self.screen_info.current_w, self.screen_info.current_h
-        self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
+        # Получаем размеры экрана
+        import ctypes
+        user32 = ctypes.windll.user32
+        screen_width = user32.GetSystemMetrics(0)
+        screen_height = user32.GetSystemMetrics(1)
+        
+        # Устанавливаем ширину окна и полную высоту экрана
+        self.original_width = 1024
+        self.original_height = screen_height  # Полная высота экрана
+        
+        # Используем начальный размер для создания окна
+        self.catalog_width = self.original_width
+        self.catalog_height = self.original_height
+        
+        # Устанавливаем переменную окружения для центрирования по горизонтали
+        import os
+        os.environ['SDL_VIDEO_CENTERED'] = '1'
+        
+        # Создаем окно
+        self.screen = pygame.display.set_mode((self.catalog_width, self.catalog_height), pygame.RESIZABLE)
         pygame.display.set_caption("Game Launcher")
         
         self.clock = pygame.time.Clock()
@@ -18,21 +35,43 @@ class GameLauncher:
         self.running = True
         self.games = game.game_list
         
-        self.current_game = None
-        self.show_menu = True
+        self.container = None
+        self.cards = None
+        self.setup_container()
         
+        # Принудительно обновляем отображение
+        pygame.display.flip()
+    
+    def setup_container(self):
+        """Настройка контейнера с учетом текущего размера окна"""
         container_margin = 50
         self.container = scrollable_container.ScrollableContainer(
             container_margin, 
             container_margin, 
-            self.width - 2 * container_margin, 
-            self.height - 2 * container_margin
+            self.catalog_width - 2 * container_margin, 
+            self.catalog_height - 2 * container_margin
         )
-        
         self.cards = self._create_cards_grid()
+    
+    def reset_window_size(self):
+        """Восстанавливает первоначальный размер окна (полную высоту экрана)"""
+        import ctypes
+        user32 = ctypes.windll.user32
+        screen_height = user32.GetSystemMetrics(1)
         
+        self.catalog_width = self.original_width
+        self.catalog_height = screen_height  # Восстанавливаем полную высоту экрана
+        
+        self.screen = pygame.display.set_mode((self.catalog_width, self.catalog_height), pygame.RESIZABLE)
+        self.setup_container()
+        # Обновляем отображение
+        self.draw()
+        pygame.display.flip()
+    
     def _create_cards_grid(self):
-        """Create grid of cards"""
+        if not self.container:
+            return []
+            
         cards = []
         card_width = 300
         card_height = 380
@@ -64,25 +103,39 @@ class GameLauncher:
         return cards
     
     def launch_game(self, game_info):
-        """Запуск выбранной игры"""
         game_class = game_info.get_game_class()
         if game_class:
-            self.show_menu = False
+            # Сохраняем текущий размер перед запуском игры
+            self.screen.fill((0, 0, 0))
+            font = pygame.font.Font(None, 36)
+            text = font.render(f"Запуск {game_info.name}...", True, (255, 255, 255))
+            text_rect = text.get_rect(center=(self.catalog_width//2, self.catalog_height//2))
+            self.screen.blit(text, text_rect)
+            pygame.display.flip()
             
-            original_screen = self.screen
-            original_size = (self.width, self.height)
+            pygame.time.wait(500)
             
-            self.current_game = game_class(self.width, self.height)
-            
-            result = self.current_game.run()
-            
-            self.screen = original_screen
-            self.width, self.height = original_size
-            self.show_menu = True
-            self.current_game = None
-            
-            if result == "quit":
-                self.running = False
+            try:
+                game_instance = game_class(self.catalog_width, self.catalog_height)
+                result = game_instance.run()
+                
+                # После завершения игры восстанавливаем размер окна
+                self.reset_window_size()
+                
+                if result == "quit":
+                    self.running = False
+            except Exception as e:
+                print(f"Ошибка запуска игры: {e}")
+                self.screen.fill((0, 0, 0))
+                error_font = pygame.font.Font(None, 24)
+                error_text = error_font.render(f"Ошибка запуска игры: {e}", True, (255, 0, 0))
+                error_rect = error_text.get_rect(center=(self.catalog_width//2, self.catalog_height//2))
+                self.screen.blit(error_text, error_rect)
+                pygame.display.flip()
+                pygame.time.wait(2000)
+                
+                # Восстанавливаем размер окна даже при ошибке
+                self.reset_window_size()
     
     def handle_events(self):
         for event in pygame.event.get():
@@ -91,63 +144,59 @@ class GameLauncher:
                 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    if not self.show_menu and self.current_game:
-                        pass
-                    else:
-                        self.running = False
+                    self.running = False
                     
             elif event.type == pygame.VIDEORESIZE:
-                self.width, self.height = event.size
-                self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
-                container_margin = 50
-                self.container = scrollable_container.ScrollableContainer(
-                    container_margin, 
-                    container_margin, 
-                    self.width - 2 * container_margin, 
-                    self.height - 2 * container_margin
-                )
-                self.cards = self._create_cards_grid()
+                # При изменении размера сохраняем полную высоту
+                import ctypes
+                user32 = ctypes.windll.user32
+                screen_height = user32.GetSystemMetrics(1)
+                
+                # Разрешаем изменять только ширину, высота остается полной
+                self.catalog_width = event.w
+                self.catalog_height = screen_height
+                self.screen = pygame.display.set_mode((self.catalog_width, self.catalog_height), pygame.RESIZABLE)
+                self.setup_container()
             
-            if self.show_menu:
-                if self.container.handle_event(event):
-                    continue
+            if self.container and self.container.handle_event(event):
+                continue
                     
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    mouse_pos = pygame.mouse.get_pos()
-                    scroll_offset = self.container.get_scroll_offset()
-                    for card in self.cards:
-                        if card.handle_click(mouse_pos, scroll_offset):
-                            self.launch_game(card.game_info)
-                            break
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mouse_pos = pygame.mouse.get_pos()
+                scroll_offset = self.container.get_scroll_offset()
+                for card in self.cards:
+                    if card.handle_click(mouse_pos, scroll_offset):
+                        self.launch_game(card.game_info)
+                        break
     
     def update(self):
-        if self.show_menu:
-            mouse_pos = pygame.mouse.get_pos()
-            scroll_offset = self.container.get_scroll_offset()
-            for card in self.cards:
-                card.check_hover(mouse_pos, scroll_offset)
+        if not self.cards:
+            return
+            
+        mouse_pos = pygame.mouse.get_pos()
+        scroll_offset = self.container.get_scroll_offset()
+        for card in self.cards:
+            card.check_hover(mouse_pos, scroll_offset)
     
     def draw(self):
-        if self.show_menu:
-            # Белый фон
-            self.screen.fill((255, 255, 255))
+        if not self.container or not self.cards:
+            return
             
-            # Светло-серый контейнер с тонкой серой рамкой
-            pygame.draw.rect(self.screen, (245, 245, 245), self.container.rect, border_radius=10)
-            pygame.draw.rect(self.screen, (220, 220, 220), self.container.rect, 1, border_radius=10)
-            
-            clip_rect = self.container.rect.copy()
-            self.screen.set_clip(clip_rect)
-            
-            scroll_offset = self.container.get_scroll_offset()
-            for card in self.cards:
-                card.draw(self.screen, scroll_offset)
-            
-            self.screen.set_clip(None)
-            
-            self.container.draw(self.screen)
-        else:
-            pass
+        self.screen.fill((255, 255, 255))
+        
+        pygame.draw.rect(self.screen, (245, 245, 245), self.container.rect, border_radius=10)
+        pygame.draw.rect(self.screen, (220, 220, 220), self.container.rect, 1, border_radius=10)
+        
+        clip_rect = self.container.rect.copy()
+        self.screen.set_clip(clip_rect)
+        
+        scroll_offset = self.container.get_scroll_offset()
+        for card in self.cards:
+            card.draw(self.screen, scroll_offset)
+        
+        self.screen.set_clip(None)
+        
+        self.container.draw(self.screen)
         
         pygame.display.flip()
     
