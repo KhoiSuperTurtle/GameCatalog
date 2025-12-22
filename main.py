@@ -2,6 +2,7 @@ import pygame
 import game
 import menu_grid
 import scrollable_container
+import os
 
 class GameLauncher:
     def __init__(self):
@@ -14,20 +15,15 @@ class GameLauncher:
         screen_width = user32.GetSystemMetrics(0)
         screen_height = user32.GetSystemMetrics(1)
         
-        # Устанавливаем ширину окна и полную высоту экрана
-        self.original_width = 1024
-        self.original_height = screen_height  # Полная высота экрана
+        # Фиксированный размер окна (не изменяемый)
+        self.catalog_width = 1024
+        self.catalog_height = 768
         
-        # Используем начальный размер для создания окна
-        self.catalog_width = self.original_width
-        self.catalog_height = self.original_height
-        
-        # Устанавливаем переменную окружения для центрирования по горизонтали
-        import os
-        os.environ['SDL_VIDEO_CENTERED'] = '1'
+        # Для Block Blast сохраняем оригинальный размер
+        self.block_blast_size = (1000, 700)
         
         # Создаем окно
-        self.screen = pygame.display.set_mode((self.catalog_width, self.catalog_height), pygame.RESIZABLE)
+        self.screen = pygame.display.set_mode((self.catalog_width, self.catalog_height))
         pygame.display.set_caption("Game Launcher")
         
         self.clock = pygame.time.Clock()
@@ -52,21 +48,6 @@ class GameLauncher:
             self.catalog_height - 2 * container_margin
         )
         self.cards = self._create_cards_grid()
-    
-    def reset_window_size(self):
-        """Восстанавливает первоначальный размер окна (полную высоту экрана)"""
-        import ctypes
-        user32 = ctypes.windll.user32
-        screen_height = user32.GetSystemMetrics(1)
-        
-        self.catalog_width = self.original_width
-        self.catalog_height = screen_height  # Восстанавливаем полную высоту экрана
-        
-        self.screen = pygame.display.set_mode((self.catalog_width, self.catalog_height), pygame.RESIZABLE)
-        self.setup_container()
-        # Обновляем отображение
-        self.draw()
-        pygame.display.flip()
     
     def _create_cards_grid(self):
         if not self.container:
@@ -116,14 +97,21 @@ class GameLauncher:
             pygame.time.wait(500)
             
             try:
-                game_instance = game_class(self.catalog_width, self.catalog_height)
+                # Для Block Blast используем фиксированный размер, для других - текущий размер окна
+                if game_info.name == "Block Blast":
+                    game_instance = game_class(*self.block_blast_size)
+                else:
+                    game_instance = game_class(self.catalog_width, self.catalog_height)
+                    
                 result = game_instance.run()
                 
-                # После завершения игры восстанавливаем размер окна
-                self.reset_window_size()
+                # После завершения игры возвращаемся в каталог
+                self.screen = pygame.display.set_mode((self.catalog_width, self.catalog_height))
+                pygame.display.set_caption("Game Launcher")
                 
                 if result == "quit":
                     self.running = False
+                    
             except Exception as e:
                 print(f"Ошибка запуска игры: {e}")
                 self.screen.fill((0, 0, 0))
@@ -133,9 +121,6 @@ class GameLauncher:
                 self.screen.blit(error_text, error_rect)
                 pygame.display.flip()
                 pygame.time.wait(2000)
-                
-                # Восстанавливаем размер окна даже при ошибке
-                self.reset_window_size()
     
     def handle_events(self):
         for event in pygame.event.get():
@@ -145,18 +130,6 @@ class GameLauncher:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
-                    
-            elif event.type == pygame.VIDEORESIZE:
-                # При изменении размера сохраняем полную высоту
-                import ctypes
-                user32 = ctypes.windll.user32
-                screen_height = user32.GetSystemMetrics(1)
-                
-                # Разрешаем изменять только ширину, высота остается полной
-                self.catalog_width = event.w
-                self.catalog_height = screen_height
-                self.screen = pygame.display.set_mode((self.catalog_width, self.catalog_height), pygame.RESIZABLE)
-                self.setup_container()
             
             if self.container and self.container.handle_event(event):
                 continue
