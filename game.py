@@ -41,7 +41,6 @@ class GameInfo:
         return self.image
 
 
-# Импортируем игры из соответствующих директорий
 try:
     from tetris.tetris_main import TetrisGame
 except ImportError:
@@ -55,18 +54,40 @@ except ImportError:
     print("Предупреждение: F1 Racing не найден")
 
 try:
-    # Импорт Block Blast
     from BlockBlast.main import BlockBlastGame
 except ImportError as e:
     BlockBlastGame = None
     print(f"Предупреждение: Block Blast не найден: {e}")
 
-# Создаем объекты игр
+try:
+    # Импортируем напрямую из файла
+    import sys
+    sys.path.insert(0, 'TextTypingGame')
+    from TextTypingGame import TextTypingGame
+    print("TextTypingGame успешно импортирован")
+except ImportError as e:
+    print(f"Ошибка импорта TextTypingGame: {e}")
+    # Создаем заготовку класса для тестирования
+    class TextTypingGame:
+        def __init__(self, screen_width, screen_height):
+            print(f"Создан TextTypingGame с размером {screen_width}x{screen_height}")
+        
+        def run(self):
+            print("Запущен TextTypingGame")
+            return "quit"
+try:
+    from snake.Snake123 import SnakeGame
+except ImportError as e:
+    SnakeGame = None
+    print(f"Предупреждение: Snake не найден: {e}")
+
+
 tetris = GameInfo("Тетрис", "Легендарная игра про блоки по новому", TetrisGame, "img/tetris.png")
 f1_racing = GameInfo("F1 Racing", "Гоночная игра Формулы 1", F1RacingGame, "img/f1_racing.png")
 block_blast = GameInfo("Block Blast", "Заполняйте сетку фигурами, чтобы составлять линии", BlockBlastGame, "img/block_blast.png")
+text_typing = GameInfo("Тайп-марафон", "Проверьте свою скорость печати на разных уровнях сложности", TextTypingGame, "img/type_race.png")
 tanks = GameInfo("Танчики", "Невероятно, но это не Т-34", None, "img/tanks.jpg")
-snake = GameInfo("Змейка", "Поедайте плоды, становитесь длинее и покорите пищевую цепь, но не самим собой", None, "img/snake.jpg")
+snake = GameInfo("Змейка", "Поедайте плоды, становитесь длинее и покорите пищевую цепь, но не самим собой", SnakeGame, "img/snake.jpg")
 flappy = GameInfo("FlappyBird", "Пролетайте между трубами за неуклюжую птицу Flappy", None, "img/flappy.jpg")
 dino = GameInfo("DinoGame", "Рассекайте пустыню за динозавра", None, "img/dino.jpg")
 
@@ -74,6 +95,7 @@ game_list = [
     tetris,
     f1_racing,
     block_blast,
+    text_typing,
     tanks,
     snake,
     dino,

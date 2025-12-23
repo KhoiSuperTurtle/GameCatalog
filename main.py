@@ -9,20 +9,16 @@ class GameLauncher:
         pygame.init()
         pygame.mixer.init()
         
-        # Получаем размеры экрана
         import ctypes
         user32 = ctypes.windll.user32
         screen_width = user32.GetSystemMetrics(0)
         screen_height = user32.GetSystemMetrics(1)
         
-        # Фиксированный размер окна (не изменяемый)
         self.catalog_width = 1024
         self.catalog_height = 768
         
-        # Для Block Blast сохраняем оригинальный размер
         self.block_blast_size = (1000, 700)
         
-        # Создаем окно
         self.screen = pygame.display.set_mode((self.catalog_width, self.catalog_height))
         pygame.display.set_caption("Game Launcher")
         
@@ -35,11 +31,9 @@ class GameLauncher:
         self.cards = None
         self.setup_container()
         
-        # Принудительно обновляем отображение
         pygame.display.flip()
     
     def setup_container(self):
-        """Настройка контейнера с учетом текущего размера окна"""
         container_margin = 50
         self.container = scrollable_container.ScrollableContainer(
             container_margin, 
@@ -86,7 +80,6 @@ class GameLauncher:
     def launch_game(self, game_info):
         game_class = game_info.get_game_class()
         if game_class:
-            # Сохраняем текущий размер перед запуском игры
             self.screen.fill((0, 0, 0))
             font = pygame.font.Font(None, 36)
             text = font.render(f"Запуск {game_info.name}...", True, (255, 255, 255))
@@ -97,20 +90,27 @@ class GameLauncher:
             pygame.time.wait(500)
             
             try:
-                # Для Block Blast используем фиксированный размер, для других - текущий размер окна
                 if game_info.name == "Block Blast":
                     game_instance = game_class(*self.block_blast_size)
+                elif game_info.name == "Тайп-марафон":
+                    # Для Тайп-марафон игнорируем переданные размеры и используем фиксированные
+                    game_instance = game_class(900, 600)
                 else:
                     game_instance = game_class(self.catalog_width, self.catalog_height)
                     
                 result = game_instance.run()
                 
-                # После завершения игры возвращаемся в каталог
+                # Восстанавливаем экран каталога
                 self.screen = pygame.display.set_mode((self.catalog_width, self.catalog_height))
                 pygame.display.set_caption("Game Launcher")
                 
-                if result == "quit":
+                # Обрабатываем результат
+                if result == "exit_to_desktop":
+                    # Полный выход из приложения
                     self.running = False
+                elif result == "quit":
+                    # Просто возвращаемся в каталог (игнорируем)
+                    pass
                     
             except Exception as e:
                 print(f"Ошибка запуска игры: {e}")
@@ -121,6 +121,14 @@ class GameLauncher:
                 self.screen.blit(error_text, error_rect)
                 pygame.display.flip()
                 pygame.time.wait(2000)
+        else:
+            self.screen.fill((0, 0, 0))
+            font = pygame.font.Font(None, 36)
+            text = font.render(f"Игра '{game_info.name}' еще в разработке", True, (255, 255, 255))
+            text_rect = text.get_rect(center=(self.catalog_width//2, self.catalog_height//2))
+            self.screen.blit(text, text_rect)
+            pygame.display.flip()
+            pygame.time.wait(2000)
     
     def handle_events(self):
         for event in pygame.event.get():
@@ -129,6 +137,7 @@ class GameLauncher:
                 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    # ESC в каталоге закрывает приложение
                     self.running = False
             
             if self.container and self.container.handle_event(event):
