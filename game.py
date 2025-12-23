@@ -80,24 +80,32 @@ try:
 except ImportError as e:
     SnakeGame = None
     print(f"Предупреждение: Snake не найден: {e}")
-
+try:
+    # Импортируем наш класс игры из папки tanks
+    from tanks.test2 import BattleTanksGame
+except ImportError as e:
+    print(f"Предупреждение: Танчики не найдены: {e}")
+    # Создаем заготовку класса для тестирования
+    class BattleTanksGame:
+        def __init__(self, screen_width, screen_height):
+            print(f"Создан BattleTanksGame с размером {screen_width}x{screen_height}")
+        
+        def run(self):
+            print("Запущен BattleTanksGame")
+            return "quit"
 
 tetris = GameInfo("Тетрис", "Легендарная игра про блоки по новому", TetrisGame, "img/tetris.png")
-f1_racing = GameInfo("F1 Racing", "Гоночная игра Формулы 1", F1RacingGame, "img/f1_racing.png")
-block_blast = GameInfo("Block Blast", "Заполняйте сетку фигурами, чтобы составлять линии", BlockBlastGame, "img/block_blast.png")
-text_typing = GameInfo("Тайп-марафон", "Проверьте свою скорость печати на разных уровнях сложности", TextTypingGame, "img/type_race.png")
-tanks = GameInfo("Танчики", "Невероятно, но это не Т-34", None, "img/tanks.jpg")
+f1_racing = GameInfo("F1 Racing", "Гоночная игра Формулы 1", F1RacingGame, "img/f1race.png")
+block_blast = GameInfo("Block Blast", "Заполняйте сетку фигурами, чтобы составлять линии", BlockBlastGame, "img/blockblast.jpg")
+text_typing = GameInfo("Тайп-марафон", "Проверьте свою скорость печати на разных уровнях сложности", TextTypingGame, "img/stg.jpg")
+tanks_game = GameInfo("Танчики", "Классическая игра Battle Tanks", BattleTanksGame, "img/tanks.jpg")
 snake = GameInfo("Змейка", "Поедайте плоды, становитесь длинее и покорите пищевую цепь, но не самим собой", SnakeGame, "img/snake.jpg")
-flappy = GameInfo("FlappyBird", "Пролетайте между трубами за неуклюжую птицу Flappy", None, "img/flappy.jpg")
-dino = GameInfo("DinoGame", "Рассекайте пустыню за динозавра", None, "img/dino.jpg")
 
 game_list = [
     tetris,
     f1_racing,
     block_blast,
     text_typing,
-    tanks,
-    snake,
-    dino,
-    flappy
+    tanks_game,
+    snake
 ]
